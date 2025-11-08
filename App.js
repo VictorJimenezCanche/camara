@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
+import * as MediaLibrary from 'expo-media-library' // 👈 nuevo import
 
 export default function CameraGalleryApp() {
   const [permission, requestPermission] = useCameraPermissions()
@@ -20,11 +21,19 @@ export default function CameraGalleryApp() {
 
   useEffect(() => {
     requestGalleryPermission()
+    requestMediaLibraryPermission() // 👈 solicitar permiso para guardar
   }, [])
 
   const requestGalleryPermission = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
     setHasGalleryPermission(status === 'granted')
+  }
+
+  const requestMediaLibraryPermission = async () => {
+    const { status } = await MediaLibrary.requestPermissionsAsync()
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'No se podrá guardar en la galería')
+    }
   }
 
   if (hasGalleryPermission === false) {
@@ -41,6 +50,18 @@ export default function CameraGalleryApp() {
         Alert.alert('Error', 'No se pudo tomar la foto')
         console.log(error)
       }
+    }
+  }
+
+  const savePhotoToGallery = async () => { // 👈 nueva función
+    if (!capturedImage) return
+    try {
+      const asset = await MediaLibrary.createAssetAsync(capturedImage)
+      await MediaLibrary.createAlbumAsync('CameraGalleryApp', asset, false)
+      Alert.alert('Éxito', 'La foto se guardó en la galería 📸')
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo guardar la foto')
+      console.log(error)
     }
   }
 
@@ -134,12 +155,21 @@ export default function CameraGalleryApp() {
       </TouchableOpacity>
 
       {capturedImage && (
-        <TouchableOpacity
-          style={[styles.button, styles.clearButton]}
-          onPress={() => setCapturedImage(null)}
-        >
-          <Text style={styles.buttonText}>🧹 Limpiar imagen</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={[styles.button, styles.saveButton]}
+            onPress={savePhotoToGallery}
+          >
+            <Text style={styles.buttonText}>💾 Guardar foto</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, styles.clearButton]}
+            onPress={() => setCapturedImage(null)}
+          >
+            <Text style={styles.buttonText}>🧹 Limpiar imagen</Text>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   )
@@ -176,6 +206,9 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     minWidth: 200,
     alignItems: 'center'
+  },
+  saveButton: { // 👈 nuevo estilo
+    backgroundColor: '#28a745'
   },
   clearButton: {
     backgroundColor: '#ff3b30'
